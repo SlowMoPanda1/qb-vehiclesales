@@ -70,10 +70,15 @@ end)
 RegisterNetEvent('qb-occasions:server:sellVehicle', function(vehiclePrice, vehicleData)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
-    MySQL.query('DELETE FROM player_vehicles WHERE plate = ? AND vehicle = ?', { vehicleData.plate, vehicleData.model })
-    MySQL.insert('INSERT INTO occasion_vehicles (seller, price, description, plate, model, mods, occasionid) VALUES (?, ?, ?, ?, ?, ?, ?)', { Player.PlayerData.citizenid, vehiclePrice, vehicleData.desc, vehicleData.plate, vehicleData.model, json.encode(vehicleData.mods), generateOID() })
-    TriggerEvent('qb-log:server:CreateLog', 'vehicleshop', 'Vehicle for Sale', 'red', '**' .. GetPlayerName(src) .. '** has a ' .. vehicleData.model .. ' priced at ' .. vehiclePrice)
-    TriggerClientEvent('qb-occasion:client:refreshVehicles', -1)
+    local ownsVehicle = MySQL.query.await('DELETE FROM player_vehicles WHERE plate = ? AND citizenid = ? and vehicle = ?', { vehicleData.plate, Player.PlayerData.citizenid, vehicleData.model })
+    if ownsVehicle.affectedRows > 0 then
+        MySQL.insert('INSERT INTO occasion_vehicles (seller, price, description, plate, model, mods, occasionid) VALUES (?, ?, ?, ?, ?, ?, ?)', { Player.PlayerData.citizenid, vehiclePrice, vehicleData.desc, vehicleData.plate, vehicleData.model, json.encode(vehicleData.mods), generateOID() })
+        TriggerEvent('qb-log:server:CreateLog', 'vehicleshop', 'Vehicle for Sale', 'red', '**' .. GetPlayerName(src) .. '** has a ' .. vehicleData.model .. ' priced at ' .. vehiclePrice)
+        TriggerClientEvent('qb-occasion:client:refreshVehicles', -1)
+        TriggerClientEvent('QBCore:Notify', src, Lang:t('success.vehicle_listed'), 'success', 5500)
+    else
+        TriggerClientEvent('QBCore:Notify', src, Lang:t('error.not_your_vehicle'), 'error', 3500)
+    end
 end)
 
 RegisterNetEvent('qb-occasions:server:sellVehicleBack', function(vehData)
@@ -87,10 +92,15 @@ RegisterNetEvent('qb-occasions:server:sellVehicleBack', function(vehData)
             break
         end
     end
-    local payout = math.floor(tonumber(price * 0.5)) -- This will give you half of the cars value
-    Player.Functions.AddMoney('bank', payout, 'sold vehicle back')
-    TriggerClientEvent('QBCore:Notify', src, Lang:t('success.sold_car_for_price', { value = payout }), 'success', 5500)
-    MySQL.query('DELETE FROM player_vehicles WHERE plate = ?', { plate })
+    local ownsVehicle = MySQL.query.await('DELETE FROM player_vehicles WHERE plate = ? AND citizenid = ? and hash = ?', { plate, Player.PlayerData.citizenid, vehData.model })
+    if ownsVehicle.affectedRows > 0 then
+        local payout = math.floor(tonumber(price * 0.5))
+        Player.Functions.AddMoney('bank', payout, 'sold vehicle back')
+        TriggerClientEvent('QBCore:Notify', src, Lang:t('success.sold_car_for_price', { value = payout }), 'success', 5500)
+        MySQL.query('DELETE FROM player_vehicles WHERE plate = ?', { plate })
+    else
+        TriggerClientEvent('QBCore:Notify', src, Lang:t('error.not_your_vehicle'), 'error', 3500)
+    end
 end)
 
 RegisterNetEvent('qb-occasions:server:buyVehicle', function(vehicleData)
