@@ -97,7 +97,6 @@ RegisterNetEvent('qb-occasions:server:sellVehicleBack', function(vehData)
         local payout = math.floor(tonumber(price * 0.5))
         Player.Functions.AddMoney('bank', payout, 'sold vehicle back')
         TriggerClientEvent('QBCore:Notify', src, Lang:t('success.sold_car_for_price', { value = payout }), 'success', 5500)
-        MySQL.query('DELETE FROM player_vehicles WHERE plate = ?', { plate })
     else
         TriggerClientEvent('QBCore:Notify', src, Lang:t('error.not_your_vehicle'), 'error', 3500)
     end
